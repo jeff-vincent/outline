@@ -1,0 +1,101 @@
+name: Dev Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: "registry:5000"
+  TAG: "${{ github.actor }}-${{ github.sha }}"
+
+jobs:
+  build-and-deploy:
+    runs-on: [self-hosted, "${{ github.actor }}"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Clean builds directory
+        shell: bash
+        run: |
+          rm -f /builds/*.done /builds/*.request /builds/*.processing \
+                /builds/*.apply /builds/*.apply-done /builds/*.apply-log \
+                /builds/*.apply-exitcode /builds/*.exitcode \
+                /builds/*.log /builds/*.dest /builds/*.tar.gz \
+                /builds/*.yaml /builds/*.sh
+
+      # -- Build all images --
+      - name: Patch Dockerfile for Kaniko
+        shell: bash
+        run: |
+          cd ${{ github.workspace }}
+          sed -i '/^FROM /a ENV npm_config_cache=/tmp/.npm' Dockerfile
+
+      - name: Build outline image
+        uses: jeff-vincent/kindling/.github/actions/kindling-build@main
+        with:
+          name: outline
+          context: ${{ github.workspace }}
+          image: "${{ env.REGISTRY }}/outline:${{ env.TAG }}"
+
+      # -- Deploy in dependency order --
+      - name: Deploy outline
+        uses: jeff-vincent/kindling/.github/actions/kindling-deploy@main
+        with:
+          name: "${{ github.actor }}-outline"
+          image: "${{ env.REGISTRY }}/outline:${{ env.TAG }}"
+          port: "3000"
+          ingress-host: "${{ github.actor }}-outline.localhost"
+          health-check-path: "/_health"
+          labels: |
+            app.kubernetes.io/part-of: outline
+            apps.example.com/github-username: ${{ github.actor }}
+          env: |
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-database-url
+                  key: value
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-database-password
+                  key: value
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-redis-url
+                  key: value
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-dd-api-key
+                  key: value
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-aws-access-key-id
+                  key: value
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-aws-secret-access-key
+                  key: value
+            - name: UTILS_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: kindling-secret-utils-secret
+                  key: value
+          dependencies: |
+            - type: postgres
+              version: "16"
+            - type: redis
+
+      # NOTE: OAuth detected — run 'kindling expose' for a public HTTPS URL
+
+      - name: Summary
+        run: |
+          echo "🎉 Deploy complete!"
+          echo "🌐 http://${{ github.actor }}-outline.localhost"
