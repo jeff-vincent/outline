@@ -53,49 +53,16 @@ jobs:
             app.kubernetes.io/part-of: outline
             apps.example.com/github-username: ${{ github.actor }}
           env: |
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-database-url
-                  key: value
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-database-password
-                  key: value
-            - name: REDIS_URL
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-redis-url
-                  key: value
-            - name: DD_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-dd-api-key
-                  key: value
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-aws-access-key-id
-                  key: value
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-aws-secret-access-key
-                  key: value
             - name: UTILS_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: kindling-secret-utils-secret
-                  key: value
+              value: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+            - name: FILE_STORAGE
+              value: "local"
           dependencies: |
             - type: postgres
-              version: "16"
             - type: redis
-
-      # NOTE: OAuth detected — run 'kindling expose' for a public HTTPS URL
 
       - name: Summary
         run: |
           echo "🎉 Deploy complete!"
           echo "🌐 http://${{ github.actor }}-outline.localhost"
+          # NOTE: OAuth detected — run 'kindling expose' for a public HTTPS URL
